@@ -1,14 +1,17 @@
 from RL.networks import ActorNetwork, CriticNetwork, ValueNetwork
 from RL.memory import ReplayBuffer
 import torch
-from torch import nn
+from torch import nn, optim
 
 from itertools import count
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 import numpy as np
+
+from config import TrainingRun
 
 class Agent:
     def __init__(self, network):
@@ -17,7 +20,7 @@ class Agent:
 
 class RLAgent:
 
-    def __init__(self, env, learning=True, temperature=2, load_actor_file=None, max_steps=1000) -> None:
+    def __init__(self, env, temperature=None, learning=True, load_actor_file=None, max_steps=1000, config=None) -> None:
         """_summary_
 
         Args:
@@ -27,32 +30,45 @@ class RLAgent:
             load_actor_file (_type_, optional): pt file containing actor network which will be loaded. Defaults to None.
             num_runs (int, optional): number of runs you want the system to run for. Defaults to 1000.
         """
+
+        if config is None:
+            config = TrainingRun()
+
+        random_seed = np.random.randint(10000)
+        torch.manual_seed(random_seed)
+        np.random.seed(seed=random_seed)
+
+        # Get current time for logging
+        now = datetime.now()
+        date_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        with open('RLAgentLog.txt', 'a') as f:
+            line = "RLAgent run at :" + date_time_str + f"\n\tRandom seed: {random_seed}\n\n"
+            f.write(line)
+
         self.env = env
 
         # Get the shape of the state space
         state_dim = self.env.observation_space.shape[0]
         action_dim = self.env.action_space.shape[0]
 
-        # Temperature is the weighting of the entropy in the loss function
-        self.temperature = temperature
-
         # Set the learning paraameters
         self.learning = learning
-        self.batch_size= 128
-        self.tau = 0.005
+        self.batch_size= config.batch_size
+        self.tau = config.tau
         self.max_steps = max_steps
 
-        self.gamma = 0.99
+        self.gamma = config.gamma
+        self.clip_param = 0.2
 
-        self.replay = ReplayBuffer(100000, state_dim, action_dim)
+        self.best_score = 0
+
+        self.replay = ReplayBuffer(config.buffer_size, state_dim, action_dim)
 
         # TODO: add action dims and state dims to game env
         # TODO: expand for multipy agents
 
         self.agent = Agent(ActorNetwork(state_dim=state_dim, action_dim=action_dim, name="actor", max_action= env.action_space.high))
-
-        if load_actor_file:
-            self.load_everything()
 
         # Two critic networks for stability
         self.critic_1 = CriticNetwork(state_dim=state_dim, action_dim=action_dim, name="critic_1")
@@ -63,6 +79,9 @@ class RLAgent:
         self.target_value_net = ValueNetwork(state_dim=state_dim, name='target')
         self.val_loss = nn.MSELoss()
 
+        if load_actor_file:
+            self.load_everything(folder=load_actor_file)
+
         self.conversative_value_update(tau=1)
 
         self.scores = []
@@ -70,11 +89,25 @@ class RLAgent:
 
         self.plot_scores = True
 
+        if temperature is None:
+            self.auto_temp = True
+            # Set target entropy
+            self.target_entropy = -torch.prod(torch.Tensor(self.env.action_space.shape).to(self.critic_1.device)).item()
+            print(f'Target entropy set to: {self.target_entropy}')
+            self.log_temperature = torch.zeros(1, requires_grad=True, device=self.critic_1.device)
+            self.temperature_optim = optim.Adam([self.log_temperature], lr=0.003)
+
+            self.temperature = self.log_temperature.exp()
+        else:
+            self.auto_temp = False
+            self.temperature = torch.tensor(temperature)
+
         if self.plot_scores:
             plt.ion()  # Turn on interactive mode
             self.fig, self.ax = plt.subplots()
             scores = []  # List to store scores
-            self.line, = self.ax.plot(scores)
+            self.line, = self.ax.plot(self.smoothed_scores, color='#1E90FF', linewidth=2.5, label='Smoothed Line')
+            self.all_data_line, = self.ax.plot(scores, color='#D3D3D3', linewidth=1, label='Original Data')
             plt.xlabel('Runs')
             plt.ylabel('Score')
             plt.title('RL Algorithm Score Over Time')
@@ -88,8 +121,11 @@ class RLAgent:
 
     def explore_one_episode(self):
 
+        self.update_hyperparameters()
+
         # Reset environment to start state
-        state, _ = self.env.reset()
+        seed = np.random.randint(0, 1000)
+        state, _ = self.env.reset(seed=seed)
 
         score = 0
 
@@ -97,10 +133,11 @@ class RLAgent:
         for t in count():
 
             # Choose an action
-            action, _ = self.agent.actor_network(state)
+            action, log_probs = self.agent.actor_network.sample_actions(state)
 
             # Update environment
             numpy_action = action.cpu().detach().numpy()
+            log_probs = log_probs.cpu().detach().numpy()
 
             new_state, reward, done, truncated, _ = self.env.step(numpy_action)
 
@@ -111,12 +148,12 @@ class RLAgent:
             else:
                 done = False
 
-            reward = self.modify_reward(reward)
+            reward, done = self.modify_reward(reward, done)
             score += reward
 
             # Save SARS to memory
 
-            self.replay.store_transition(state, numpy_action, reward, new_state, done)
+            self.replay.store_transition(state, numpy_action, reward, new_state, done, log_probs)
 
             if self.learning:
                 self.learn(self.agent)
@@ -129,31 +166,47 @@ class RLAgent:
             
             state = new_state
 
+        print(f"RUN: {self.counter} Score: {score: .3f} Temperature: {self.temperature.item():.3f}")
+
         self.scores.append(score)
 
-        mean_length = 50
-        if len(self.scores) > mean_length:
-            self.smoothed_scores.append(np.mean(self.scores[-mean_length:]))
+        smoothing_range = 10
+        if len(self.scores) > smoothing_range:
+            self.smoothed_scores.append(np.mean(self.scores[-smoothing_range:]))
         
         if self.plot_scores:
-            smoothing_range = 10
+            x_axis_data = np.arange(len(self.scores))
+            self.all_data_line.set_ydata(self.scores)
+            self.all_data_line.set_xdata(x_axis_data)
             if self.counter > smoothing_range:
                 self.line.set_ydata(self.smoothed_scores)
-                self.line.set_xdata(range(len(self.smoothed_scores)))
-                self.ax.relim()
-                self.ax.autoscale_view()
-                self.fig.canvas.draw()
-                self.fig.canvas.flush_events()
+                self.line.set_xdata(x_axis_data[smoothing_range:])
+            self.ax.relim()
+            self.ax.autoscale_view()
+            self.fig.canvas.draw()
+            self.fig.canvas.flush_events()
 
-        if self.counter%10==0:
+        if self.counter%250==0:
+            name_str = f"epoch_{self.counter}_"
+            self.save_everything(folder='waypoints', tag=name_str)
+
+        if score > self.best_score:
             self.save_everything()
+            score = self.best_score
         
         self.counter += 1
 
-    def modify_reward(self, reward):
-        """ Function to modify reward if needed
+    def modify_reward(self, reward, done):
+        """ 
+        Overwrite this function to modify reward or completion functions
         """
-        return reward
+        return reward, done
+    
+    def update_hyperparameters(self):
+
+        if self.counter%100==0 and self.counter !=0:
+            self.batch_size*=2
+            self.batch_size = min(256, self.batch_size)
 
     def learn(self, agent):
 
@@ -161,7 +214,7 @@ class RLAgent:
             return
         
         # Retrieve sars from buffer
-        state, action, reward, new_state, done = \
+        state, action, reward, new_state, done, old_log_probs = \
                 self.replay.sample_buffer(self.batch_size)
         
         # Create tensors from numpy arrays
@@ -170,6 +223,7 @@ class RLAgent:
         new_state = torch.tensor(new_state, dtype=torch.float).to(agent.actor_network.device)
         state = torch.tensor(state, dtype=torch.float).to(agent.actor_network.device)
         action = torch.tensor(action, dtype=torch.float).to(agent.actor_network.device)
+        old_log_probs = torch.tensor(old_log_probs, dtype=torch.float).to(agent.actor_network.device)
 
 
         #  ---------------------------- VALUE FUNCTION UPDATE ----------------------------------
@@ -190,19 +244,20 @@ class RLAgent:
         value_loss = 0.5*self.val_loss(value, value_target)
         value_loss.backward(retain_graph=True)
         self.value_net.optimiser.step()
+        self.value_net.scheduler.step()
 
         # ---------------------------- POLICY NETWORK UPDATE ----------------------------------
 
         # Get an action to do at the current state and tehn criticise it (get the Q value)
         critic_val, log_probs = self.criticise(agent, state, reparam=True)
-
+        
         # Actor loss is log probs + negative critics value...
         #   ... why? If the actor minimises both of these it will max entropy and reward, soft and hard
-        actor_loss = log_probs - critic_val
-        actor_loss = torch.mean(actor_loss)
+        actor_loss = ((self.temperature*log_probs) - critic_val).mean()
         agent.actor_network.optimiser.zero_grad()
         actor_loss.backward(retain_graph=True)
         agent.actor_network.optimiser.step()
+        agent.actor_network.scheduler.step()
 
         # ---------------------------- CRITIC NETWORK UPDATE ----------------------------------
 
@@ -215,8 +270,8 @@ class RLAgent:
         self.critic_1.optimiser.zero_grad()
         self.critic_2.optimiser.zero_grad()
 
-        # Update inn classic Q function method
-        q_hat = self.temperature*reward + self.gamma*target_values
+        # Update in classic Q function method
+        q_hat = reward + self.gamma*target_values
         q1_old_policy = self.critic_1.forward(state, action).view(-1)
         q2_old_policy = self.critic_2.forward(state, action).view(-1)
         critic_1_loss = 0.5 * self.val_loss(q1_old_policy, q_hat)
@@ -226,9 +281,21 @@ class RLAgent:
         critic_loss.backward()
         self.critic_1.optimiser.step()
         self.critic_2.optimiser.step()
+        self.critic_1.scheduler.step()
+        self.critic_2.scheduler.step()
 
         # Slowly update V target
         self.conversative_value_update()
+
+        if self.auto_temp:
+            # Temperature update
+            temperature_loss = -(self.log_temperature * (log_probs+self.target_entropy).detach()).mean()
+
+            self.temperature_optim.zero_grad()
+            temperature_loss.backward()
+            self.temperature_optim.step()
+
+            self.temperature = self.log_temperature.exp()
 
     def criticise(self, agent, states, reparam=False):
         """
@@ -248,7 +315,6 @@ class RLAgent:
         critic_val = torch.min(q1_of_new_pol, q2_of_new_pol)
         critic_val= critic_val.view(-1)
 
-
         return critic_val, log_probs
 
     def conversative_value_update(self,tau=None):
@@ -262,20 +328,30 @@ class RLAgent:
             V_target_params[key] = V_learned_params[key]*tau + V_target_params[key]*(1-tau)
         self.target_value_net.load_state_dict(V_target_params)
 
-    def save_everything(self):
-        # find all networks... not loss
-        for name, attribute in self.__dict__.items():
-            if isinstance(attribute, nn.Module) and not isinstance(attribute, nn.modules.loss._Loss):
-                attribute.save_network()
+    def compute_advantages(self, rewards, values, next_values, dones):
+        deltas = rewards + self.gamma * next_values * (1 - dones) - values
+        advantages = torch.zeros_like(rewards)
+        gae = 0
+        for t in reversed(range(len(rewards))):
+            gae = deltas[t] + self.gamma * self.lam * (1 - dones[t]) * gae
+            advantages[t] = gae
+        return advantages
 
-    def load_everything(self):
+    def save_everything(self,*args, **kwargs):
+        # find all networks... not loss
+        self.agent.actor_network.save_network(*args, **kwargs)
         for name, attribute in self.__dict__.items():
             if isinstance(attribute, nn.Module) and not isinstance(attribute, nn.modules.loss._Loss):
-                attribute.load_network()
+                attribute.save_network(*args, **kwargs)
+
+    def load_everything(self,*args, **kwargs):
+        self.agent.actor_network.load_network()
+        for name, attribute in self.__dict__.items():
+            if isinstance(attribute, nn.Module) and not isinstance(attribute, nn.modules.loss._Loss):
+                attribute.load_network(*args, **kwargs)
 
     def animate(self):
         plt.cla()  # Clear the current axe
-        print("HEre")
         plt.plot(np.convolve(self.scores), np.ones((10)/10))
 
     

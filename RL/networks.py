@@ -1,8 +1,11 @@
 from torch import nn, optim
 from torch.distributions.normal import Normal
 import torch
+import os
 
 from numpy import pi
+
+from config import TrainingRun
 
 PI = pi
 
@@ -14,14 +17,18 @@ def init_weights(m):
 
 class GenericNetwork:
     
-    def __init__(self, name="", save_path=None) -> None:
+    def __init__(self, name="", save_path=None, config=None) -> None:
+
+        if config is None:
+            config = TrainingRun()
 
         # String name for identification
         self.name = name
 
         # Generic network properties... 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.optimiser = optim.Adam(self.parameters(), lr=0.0003)
+        self.optimiser = optim.Adam(self.parameters(), lr=config.LearningRate)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimiser, step_size=10, gamma=0.99)
         self.to(self.device)
         
         if save_path is None:
@@ -36,16 +43,22 @@ class GenericNetwork:
             if isinstance(attr, torch.Tensor):
                 setattr(self, attr_name, attr.to(self.device))
 
-    def save_network(self):
+    def save_network(self, folder='saved_networks', tag=""):
         """ Save network
         """
-        with open(self.save_path, 'wb') as f:
+
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        save_path = f"{folder}/{tag}{self.name}_{self.__class__.__name__}_save.pt"
+        with open(save_path, 'wb') as f:
             torch.save(self.state_dict(),f)
 
-    def load_network(self):
+    def load_network(self,folder='saved_networks', tag=""):
         """Load a network
         """
-        self.load_state_dict(torch.load(self.save_path))
+        save_path = f"{folder}/{tag}{self.name}_{self.__class__.__name__}_save.pt"
+        self.load_state_dict(torch.load(save_path))
 
 class ActorNetwork(nn.Module, GenericNetwork):
 
@@ -106,7 +119,11 @@ class ActorNetwork(nn.Module, GenericNetwork):
         # Take the log of the actions for entropy
         log_probs = action_distribution.log_prob(actions)
         log_probs -= torch.log(torch.tensor(self.max_action).to(self.device)) + torch.log((1-torch.tanh(actions).pow(2))+self.noise)
-        log_probs = log_probs.sum(1, keepdim=True)
+
+        if len(log_probs.size()) > 1:
+            log_probs = log_probs.sum(1, keepdim=True)
+        else:
+            log_probs = log_probs.sum()
 
         return action, log_probs
 

@@ -1,39 +1,49 @@
 from RL.agent import RLAgent
 
 import gymnasium as gym
+import numpy as np
 
 class CurrentPosition():
-    def __init__(self, x=0, y=0) -> None:
-        self.x = 0
-        self.y = 0
+    def __init__(self, env) -> None:
+        self.x = env.hull.position.x
+        self.y = env.hull.position.y
         self.been_set = False
 
-    def set(self,x,y):
-        self.x = x
-        self.y = y
+    def set(self,env):
+        self.x = env.hull.position.x
+        self.y = env.hull.position.y
         self.been_set = True
 
 
-class ModifedRLAgent(RLAgent):
+class BipedalRLAgent(RLAgent):
 
-    def __init__(self, env, learning=True, temperature=2, load_actor_file=None, max_steps=1000) -> None:
-        self.current_position = 0
-        super().__init__(env, learning, temperature, load_actor_file, max_steps)
+    def __init__(self, env, temperature=None, learning=True, load_actor_file=None, max_steps=1000) -> None:
+        self.stuck_count = 0
+        super().__init__(env, temperature, learning, load_actor_file, max_steps)
 
     def explore_one_episode(self):
-        self.current_position = CurrentPosition()
+        self.stuck_count = 0
+        self.mod_called = False
         return super().explore_one_episode()
 
-    def modify_reward(self, reward):
-        if not self.current_position.been_set:
-            self.current_position.set(self.env.hull.position[0], self.env.hull.position[1])
-            return 0
+    def modify_reward(self, reward, done):
 
-        distance_x = (self.env.hull.position[0] - self.current_position.x)
-        distance_y = (self.env.hull.position[1] - self.current_position.y)
+        # if done:
+        #     reward = 0
+        #     return reward, done
+        
 
-        reward = distance_x
+        # if not self.mod_called:
+        #     self.current_position = CurrentPosition(self.env)
+        #     self.mod_called = True
 
-        self.current_position.set(self.env.hull.position[0], self.env.hull.position[1])
+        # new_position = CurrentPosition(self.env)
 
-        return reward
+        # if new_position.x > self.current_position.x:
+        #     reward= (new_position.x - self.current_position.x)
+        #     self.current_position = new_position
+        # else:
+            # reward = 0
+        
+
+        return reward, done
