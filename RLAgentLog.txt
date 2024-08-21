@@ -298,3 +298,438 @@ RLAgent run at :2024-08-18 19:55:03
 RLAgent run at :2024-08-18 19:57:24
 	Random seed: 167
 
+RLAgent run at :2024-08-18 20:14:34
+	Random seed: 1902
+
+RLAgent run at :2024-08-18 20:14:57
+	Random seed: 2273
+
+RLAgent run at :2024-08-18 20:19:20
+	Random seed: 1544
+
+RLAgent run at :2024-08-18 20:22:45
+	Random seed: 7377
+
+RLAgent run at :2024-08-18 20:23:24
+	Random seed: 710
+
+RLAgent run at :2024-08-18 20:54:58
+	Random seed: 5437
+
+RLAgent run at :2024-08-18 20:55:31
+	Random seed: 121
+
+RLAgent run at :2024-08-18 20:59:17
+	Random seed: 7692
+
+RLAgent run at :2024-08-18 21:00:27
+	Random seed: 895
+
+RLAgent run at :2024-08-18 21:06:47
+	Random seed: 2527
+
+RLAgent run at :2024-08-18 21:20:02
+	Random seed: 9166
+
+RLAgent run at :2024-08-19 07:13:25
+	Random seed: 2538
+
+RLAgent run at :2024-08-19 07:14:33
+	Random seed: 9591
+
+RLAgent run at :2024-08-19 07:20:01
+	Random seed: 7917
+
+RLAgent run at :2024-08-19 07:31:24
+	Random seed: 7063
+
+RLAgent run at :2024-08-19 19:29:08
+	Random seed: 8752
+
+RLAgent run at :2024-08-19 19:35:20
+	Random seed: 9225
+
+RLAgent run at :2024-08-19 19:35:43
+	Random seed: 9824
+
+RLAgent run at :2024-08-19 19:36:06
+	Random seed: 1361
+
+RLAgent run at :2024-08-19 19:36:48
+	Random seed: 7718
+
+RLAgent run at :2024-08-19 19:37:25
+	Random seed: 7763
+
+RLAgent run at :2024-08-19 19:39:56
+	Random seed: 3690
+
+RLAgent run at :2024-08-19 19:40:40
+	Random seed: 3921
+
+RLAgent run at :2024-08-19 19:41:12
+	Random seed: 4052
+
+RLAgent run at :2024-08-19 19:42:20
+	Random seed: 7947
+
+RLAgent run at :2024-08-19 19:43:26
+	Random seed: 6604
+
+RLAgent run at :2024-08-19 19:45:59
+	Random seed: 9961
+
+RLAgent run at :2024-08-19 19:46:18
+	Random seed: 8014
+
+RLAgent run at :2024-08-19 19:48:15
+	Random seed: 5435
+
+RLAgent run at :2024-08-19 19:48:40
+	Random seed: 8991
+
+RLAgent run at :2024-08-19 19:49:01
+	Random seed: 8064
+
+RLAgent run at :2024-08-19 19:50:22
+	Random seed: 3226
+
+RLAgent run at :2024-08-19 19:51:39
+	Random seed: 7303
+
+RLAgent run at :2024-08-19 19:52:19
+	Random seed: 6105
+
+RLAgent run at :2024-08-19 19:52:33
+	Random seed: 1466
+
+RLAgent run at :2024-08-19 19:53:21
+	Random seed: 9018
+
+RLAgent run at :2024-08-19 19:54:45
+	Random seed: 9331
+
+RLAgent run at :2024-08-19 19:55:23
+	Random seed: 5932
+
+RLAgent run at :2024-08-19 19:59:00
+	Random seed: 3857
+
+RLAgent run at :2024-08-19 19:59:22
+	Random seed: 9311
+
+RLAgent run at :2024-08-19 20:00:01
+	Random seed: 6968
+
+RLAgent run at :2024-08-19 20:00:19
+	Random seed: 4478
+
+RLAgent run at :2024-08-19 20:03:01
+	Random seed: 9664
+
+RLAgent run at :2024-08-19 20:15:12
+	Random seed: 3586
+
+RLAgent run at :2024-08-19 20:15:31
+	Random seed: 756
+
+RLAgent run at :2024-08-19 20:15:51
+	Random seed: 3621
+
+RLAgent run at :2024-08-19 20:15:59
+	Random seed: 9462
+
+RLAgent run at :2024-08-19 20:16:55
+	Random seed: 3305
+
+RLAgent run at :2024-08-19 20:18:07
+	Random seed: 4339
+
+RLAgent run at :2024-08-19 20:19:21
+	Random seed: 5723
+
+RLAgent run at :2024-08-19 20:20:04
+	Random seed: 243
+
+RLAgent run at :2024-08-19 20:20:21
+	Random seed: 4907
+
+RLAgent run at :2024-08-19 20:20:37
+	Random seed: 4040
+
+RLAgent run at :2024-08-19 20:21:27
+	Random seed: 9508
+
+RLAgent run at :2024-08-19 20:22:03
+	Random seed: 6529
+
+RLAgent run at :2024-08-19 20:22:21
+	Random seed: 4688
+
+RLAgent run at :2024-08-19 20:22:43
+	Random seed: 668
+
+RLAgent run at :2024-08-19 20:26:04
+	Random seed: 217
+
+RLAgent run at :2024-08-19 20:26:51
+	Random seed: 2211
+
+RLAgent run at :2024-08-19 20:27:15
+	Random seed: 8533
+
+RLAgent run at :2024-08-19 20:27:57
+	Random seed: 2793
+
+RLAgent run at :2024-08-19 20:29:10
+	Random seed: 8252
+
+RLAgent run at :2024-08-19 20:30:17
+	Random seed: 3423
+
+RLAgent run at :2024-08-19 20:31:24
+	Random seed: 368
+
+RLAgent run at :2024-08-19 20:31:48
+	Random seed: 1383
+
+RLAgent run at :2024-08-19 20:32:49
+	Random seed: 7711
+
+RLAgent run at :2024-08-19 20:34:14
+	Random seed: 201
+
+RLAgent run at :2024-08-19 20:35:25
+	Random seed: 1474
+
+RLAgent run at :2024-08-19 20:39:06
+	Random seed: 8344
+
+RLAgent run at :2024-08-19 20:39:47
+	Random seed: 4263
+
+RLAgent run at :2024-08-19 20:42:53
+	Random seed: 5282
+
+RLAgent run at :2024-08-19 20:43:50
+	Random seed: 7667
+
+RLAgent run at :2024-08-19 20:44:53
+	Random seed: 8360
+
+RLAgent run at :2024-08-19 20:47:24
+	Random seed: 7932
+
+RLAgent run at :2024-08-19 20:49:03
+	Random seed: 3319
+
+RLAgent run at :2024-08-19 20:49:54
+	Random seed: 3456
+
+RLAgent run at :2024-08-19 20:51:08
+	Random seed: 6587
+
+RLAgent run at :2024-08-19 20:51:54
+	Random seed: 7693
+
+RLAgent run at :2024-08-19 20:52:23
+	Random seed: 734
+
+RLAgent run at :2024-08-19 21:25:58
+	Random seed: 5557
+
+RLAgent run at :2024-08-19 21:26:29
+	Random seed: 8978
+
+RLAgent run at :2024-08-19 21:26:41
+	Random seed: 3241
+
+RLAgent run at :2024-08-19 21:27:16
+	Random seed: 7457
+
+RLAgent run at :2024-08-19 21:28:17
+	Random seed: 4141
+
+RLAgent run at :2024-08-19 21:31:32
+	Random seed: 5729
+
+RLAgent run at :2024-08-19 21:33:17
+	Random seed: 5536
+
+RLAgent run at :2024-08-19 21:41:09
+	Random seed: 2608
+
+RLAgent run at :2024-08-19 22:50:36
+	Random seed: 9763
+
+RLAgent run at :2024-08-19 22:51:02
+	Random seed: 2173
+
+RLAgent run at :2024-08-19 22:52:10
+	Random seed: 5928
+
+RLAgent run at :2024-08-19 22:52:58
+	Random seed: 2874
+
+RLAgent run at :2024-08-19 22:53:18
+	Random seed: 5485
+
+RLAgent run at :2024-08-19 22:54:29
+	Random seed: 8673
+
+RLAgent run at :2024-08-19 22:56:59
+	Random seed: 1170
+
+RLAgent run at :2024-08-19 22:57:52
+	Random seed: 8517
+
+RLAgent run at :2024-08-19 22:58:29
+	Random seed: 4524
+
+RLAgent run at :2024-08-19 23:00:15
+	Random seed: 8526
+
+RLAgent run at :2024-08-19 23:00:49
+	Random seed: 2250
+
+RLAgent run at :2024-08-19 23:01:41
+	Random seed: 1738
+
+RLAgent run at :2024-08-19 23:02:56
+	Random seed: 3398
+
+RLAgent run at :2024-08-19 23:03:40
+	Random seed: 8999
+
+RLAgent run at :2024-08-19 23:05:19
+	Random seed: 6191
+
+RLAgent run at :2024-08-20 07:07:28
+	Random seed: 4530
+
+RLAgent run at :2024-08-20 07:08:17
+	Random seed: 6465
+
+RLAgent run at :2024-08-20 16:04:35
+	Random seed: 3436
+
+RLAgent run at :2024-08-20 16:05:03
+	Random seed: 6204
+
+RLAgent run at :2024-08-20 16:21:38
+	Random seed: 3784
+
+RLAgent run at :2024-08-20 16:22:12
+	Random seed: 2002
+
+RLAgent run at :2024-08-20 16:26:20
+	Random seed: 5216
+
+RLAgent run at :2024-08-20 16:27:02
+	Random seed: 832
+
+RLAgent run at :2024-08-20 16:27:26
+	Random seed: 1467
+
+RLAgent run at :2024-08-20 18:01:26
+	Random seed: 9977
+
+RLAgent run at :2024-08-20 18:11:51
+	Random seed: 3774
+
+RLAgent run at :2024-08-20 18:49:25
+	Random seed: 7853
+
+RLAgent run at :2024-08-20 19:36:06
+	Random seed: 6019
+
+RLAgent run at :2024-08-20 20:53:25
+	Random seed: 9492
+
+RLAgent run at :2024-08-20 20:53:41
+	Random seed: 6294
+
+RLAgent run at :2024-08-20 20:54:33
+	Random seed: 8050
+
+RLAgent run at :2024-08-20 21:03:31
+	Random seed: 7720
+
+RLAgent run at :2024-08-20 21:05:22
+	Random seed: 9728
+
+RLAgent run at :2024-08-20 21:06:54
+	Random seed: 3388
+
+RLAgent run at :2024-08-20 21:11:45
+	Random seed: 9446
+
+RLAgent run at :2024-08-20 21:16:31
+	Random seed: 9123
+
+RLAgent run at :2024-08-20 21:21:37
+	Random seed: 895
+
+RLAgent run at :2024-08-20 21:23:54
+	Random seed: 6122
+
+RLAgent run at :2024-08-20 21:25:58
+	Random seed: 6764
+
+RLAgent run at :2024-08-20 21:29:27
+	Random seed: 7396
+
+RLAgent run at :2024-08-20 21:30:22
+	Random seed: 3308
+
+RLAgent run at :2024-08-20 21:32:11
+	Random seed: 1767
+
+RLAgent run at :2024-08-20 21:44:39
+	Random seed: 3603
+
+RLAgent run at :2024-08-20 21:49:49
+	Random seed: 3604
+
+RLAgent run at :2024-08-20 22:27:02
+	Random seed: 8445
+
+RLAgent run at :2024-08-20 22:30:33
+	Random seed: 112
+
+RLAgent run at :2024-08-20 22:31:52
+	Random seed: 2971
+
+RLAgent run at :2024-08-20 22:32:28
+	Random seed: 3481
+
+RLAgent run at :2024-08-20 22:33:44
+	Random seed: 4472
+
+RLAgent run at :2024-08-20 22:34:28
+	Random seed: 2432
+
+RLAgent run at :2024-08-20 22:35:50
+	Random seed: 8612
+
+RLAgent run at :2024-08-20 22:36:35
+	Random seed: 9113
+
+RLAgent run at :2024-08-20 22:38:44
+	Random seed: 825
+
+RLAgent run at :2024-08-20 22:39:09
+	Random seed: 5415
+
+RLAgent run at :2024-08-20 22:40:27
+	Random seed: 9328
+
+RLAgent run at :2024-08-21 07:06:21
+	Random seed: 8543
+
+RLAgent run at :2024-08-21 07:09:17
+	Random seed: 4217
+
+RLAgent run at :2024-08-21 07:10:31
+	Random seed: 1291
+

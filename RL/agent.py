@@ -32,7 +32,7 @@ class RLAgent:
         """
 
         if config is None:
-            config = TrainingRun()
+            self.config = TrainingRun()
 
         random_seed = np.random.randint(10000)
         torch.manual_seed(random_seed)
@@ -49,38 +49,42 @@ class RLAgent:
         self.env = env
 
         # Get the shape of the state space
-        state_dim = self.env.observation_space.shape[0]
-        action_dim = self.env.action_space.shape[0]
+        self.state_dim = self.env.observation_space.shape[0]
+        self.action_dim = self.env.action_space.shape[0]
 
         # Set the learning paraameters
         self.learning = learning
-        self.batch_size= config.batch_size
-        self.tau = config.tau
+        self.batch_size= self.config.batch_size
+        self.tau = self.config.tau
         self.max_steps = max_steps
 
-        self.gamma = config.gamma
+        # Set up save directory
+        self.save_dir = self.config.save_directory
+
+        self.gamma = self.config.gamma
         self.clip_param = 0.2
 
         self.best_score = 0
 
-        self.replay = ReplayBuffer(config.buffer_size, state_dim, action_dim)
-
         # TODO: add action dims and state dims to game env
         # TODO: expand for multipy agents
 
-        self.agent = Agent(ActorNetwork(state_dim=state_dim, action_dim=action_dim, name="actor", max_action= env.action_space.high))
+        self.agent = Agent(ActorNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="actor", max_action= env.action_space.high))
 
         # Two critic networks for stability
-        self.critic_1 = CriticNetwork(state_dim=state_dim, action_dim=action_dim, name="critic_1")
-        self.critic_2 = CriticNetwork(state_dim=state_dim, action_dim=action_dim, name="critic_2")
+        self.critic_1 = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_1")
+        self.critic_2 = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_2")
+
+        self.critic_1_target = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_1")
+        self.critic_2_target = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_2")
 
         # Value network
-        self.value_net = ValueNetwork(state_dim=state_dim, name='value')
-        self.target_value_net = ValueNetwork(state_dim=state_dim, name='target')
+        self.value_net = ValueNetwork(state_dim=self.state_dim, name='value')
+        self.target_value_net = ValueNetwork(state_dim=self.state_dim, name='target')
         self.val_loss = nn.MSELoss()
 
         if load_actor_file:
-            self.load_everything(folder=load_actor_file)
+            self.load_everything()
 
         self.conversative_value_update(tau=1)
 
@@ -88,6 +92,13 @@ class RLAgent:
         self.smoothed_scores = []
 
         self.plot_scores = True
+
+        if not self.config.priority_mem:
+            self.replay = ReplayBuffer(self.config.buffer_size, self.state_dim, self.action_dim)
+        else:
+            self.replay = ReplayBuffer(self.config.buffer_size, self.state_dim, self.action_dim, prioritise=self.config.priority_mem,
+                                       policy_net=self.agent.actor_network, critic_nets=(self.critic_1, self.critic_2),
+                                       target_net=self.target_value_net, gamma=self.gamma)
 
         if temperature is None:
             self.auto_temp = True
@@ -106,8 +117,8 @@ class RLAgent:
             plt.ion()  # Turn on interactive mode
             self.fig, self.ax = plt.subplots()
             scores = []  # List to store scores
-            self.line, = self.ax.plot(self.smoothed_scores, color='#1E90FF', linewidth=2.5, label='Smoothed Line')
-            self.all_data_line, = self.ax.plot(scores, color='#D3D3D3', linewidth=1, label='Original Data')
+            self.all_data_line, = self.ax.plot(scores, color='#D3D3D3', linewidth=2, label='Running mean')
+            self.line, = self.ax.plot(self.smoothed_scores, color='#1E90FF', linewidth=2.5, label='Last 10')
             plt.xlabel('Runs')
             plt.ylabel('Score')
             plt.title('RL Algorithm Score Over Time')
@@ -129,6 +140,12 @@ class RLAgent:
 
         score = 0
 
+        states= np.zeros((self.max_steps, self.state_dim), dtype=np.float32)
+        new_states = np.zeros((self.max_steps, self.state_dim), dtype=np.float32)
+        actions = np.zeros((self.max_steps, self.action_dim), dtype=np.float32)
+        rewards = np.zeros((self.max_steps), dtype=np.float32)
+        terminals = np.zeros(self.max_steps, dtype=np.bool_)
+
         # Count number of steps in episode
         for t in count():
 
@@ -141,19 +158,21 @@ class RLAgent:
 
             new_state, reward, done, truncated, _ = self.env.step(numpy_action)
 
+            states[t] = state
+            new_states[t] = new_state
+            actions[t] = numpy_action
+            rewards[t] = reward
+            terminals[t] = done
+ 
             done = done or truncated
 
-            if t==self.max_steps or done:
+            if t==(self.max_steps-1) or done:
                 truncated = True
             else:
                 done = False
 
             reward, done = self.modify_reward(reward, done)
             score += reward
-
-            # Save SARS to memory
-
-            self.replay.store_transition(state, numpy_action, reward, new_state, done, log_probs)
 
             if self.learning:
                 self.learn(self.agent)
@@ -166,7 +185,10 @@ class RLAgent:
             
             state = new_state
 
-        print(f"RUN: {self.counter} Score: {score: .3f} Temperature: {self.temperature.item():.3f}")
+        print(f"RUN: {self.counter} Score: {score: .3f} Temperature: {self.temperature.item():.3e}")
+
+        # Save SARS to memory
+        self.replay.store_transition(t, states, actions, rewards, new_states, terminals)
 
         self.scores.append(score)
 
@@ -176,8 +198,8 @@ class RLAgent:
         
         if self.plot_scores:
             x_axis_data = np.arange(len(self.scores))
-            self.all_data_line.set_ydata(self.scores)
-            self.all_data_line.set_xdata(x_axis_data)
+            # self.all_data_line.set_ydata(self.scores)
+            # self.all_data_line.set_xdata(x_axis_data)
             if self.counter > smoothing_range:
                 self.line.set_ydata(self.smoothed_scores)
                 self.line.set_xdata(x_axis_data[smoothing_range:])
@@ -210,21 +232,12 @@ class RLAgent:
 
     def learn(self, agent):
 
-        if self.replay.mem_cntr < self.batch_size:
+        if self.replay.write_num < self.batch_size:
             return
         
         # Retrieve sars from buffer
         state, action, reward, new_state, done, old_log_probs = \
                 self.replay.sample_buffer(self.batch_size)
-        
-        # Create tensors from numpy arrays
-        reward = torch.tensor(reward, dtype=torch.float).to(agent.actor_network.device)
-        done = torch.tensor(done).to(agent.actor_network.device)
-        new_state = torch.tensor(new_state, dtype=torch.float).to(agent.actor_network.device)
-        state = torch.tensor(state, dtype=torch.float).to(agent.actor_network.device)
-        action = torch.tensor(action, dtype=torch.float).to(agent.actor_network.device)
-        old_log_probs = torch.tensor(old_log_probs, dtype=torch.float).to(agent.actor_network.device)
-
 
         #  ---------------------------- VALUE FUNCTION UPDATE ----------------------------------
 
@@ -277,6 +290,12 @@ class RLAgent:
         critic_1_loss = 0.5 * self.val_loss(q1_old_policy, q_hat)
         critic_2_loss = 0.5 * self.val_loss(q2_old_policy, q_hat)
 
+        if self.config.priority_mem:
+            q1_temp_error = q1_old_policy - q_hat
+            q2_temp_error = q2_old_policy - q_hat
+            mean_temp_error = q1_temp_error + q2_temp_error / 2.0
+            self.replay.reassign_priority(mean_temp_error)
+
         critic_loss = critic_1_loss + critic_2_loss
         critic_loss.backward()
         self.critic_1.optimiser.step()
@@ -289,7 +308,7 @@ class RLAgent:
 
         if self.auto_temp:
             # Temperature update
-            temperature_loss = -(self.log_temperature * (log_probs+self.target_entropy).detach()).mean()
+            temperature_loss = -(self.log_temperature.exp() * (log_probs+self.target_entropy).detach()).mean()
 
             self.temperature_optim.zero_grad()
             temperature_loss.backward()

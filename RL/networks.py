@@ -27,8 +27,8 @@ class GenericNetwork:
 
         # Generic network properties... 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.optimiser = optim.Adam(self.parameters(), lr=config.LearningRate)
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimiser, step_size=10, gamma=0.99)
+        self.optimiser = optim.Adam(self.parameters(), lr=config.learning_rate)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimiser, step_size=100, gamma=0.99)
         self.to(self.device)
         
         if save_path is None:
@@ -74,7 +74,7 @@ class ActorNetwork(nn.Module, GenericNetwork):
         self.kin_fc2 = nn.Linear(hidden_lay_1, hidden_lay_2)
 
         self.mean = nn.Linear(hidden_lay_2, action_dim)
-        self.sigma = nn.Linear(hidden_lay_2, action_dim)
+        self.log_sigma = nn.Linear(hidden_lay_2, action_dim)
 
         self.noise = 1e-6
 
@@ -84,7 +84,7 @@ class ActorNetwork(nn.Module, GenericNetwork):
 
         GenericNetwork.__init__(self, name, None)
 
-        self.apply(init_weights)
+        #self.apply(init_weights)
 
     def forward(self, state):
 
@@ -95,12 +95,15 @@ class ActorNetwork(nn.Module, GenericNetwork):
 
         # Get mean and std 
         mean = self.mean(x)
-        std = self.sigma(x)
+        log_std = self.log_sigma(x)
 
-        std = torch.clamp(std, min=self.noise, max=1)
+        log_std = torch.tanh(log_std)
+        log_std = -5 + 0.5 * 7 * (log_std + 1)
+
+        std = log_std.exp()
 
         return mean, std
-    
+        
     def sample_actions(self, state, reparameterize=False):
 
         # run network

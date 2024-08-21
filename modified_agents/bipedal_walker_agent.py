@@ -28,22 +28,22 @@ class BipedalRLAgent(RLAgent):
 
     def modify_reward(self, reward, done):
 
-        # if done:
-        #     reward = 0
-        #     return reward, done
+        if done:
+            return reward, done
         
 
-        # if not self.mod_called:
-        #     self.current_position = CurrentPosition(self.env)
-        #     self.mod_called = True
+        if not self.mod_called:
+            self.current_position = CurrentPosition(self.env)
+            self.mod_called = True
+            return 0.0, False
 
-        # new_position = CurrentPosition(self.env)
+        new_position = CurrentPosition(self.env)
 
-        # if new_position.x > self.current_position.x:
-        #     reward= (new_position.x - self.current_position.x)
-        #     self.current_position = new_position
-        # else:
-            # reward = 0
+        if new_position.x > self.current_position.x:
+            reward= 10.0*(new_position.x - self.current_position.x)
+            self.current_position = new_position
+        else:
+            reward = 0
         
 
         return reward, done
