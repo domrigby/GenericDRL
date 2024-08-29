@@ -20,19 +20,21 @@ class GenericNetwork:
     def __init__(self, name="", save_path=None, config=None) -> None:
 
         if config is None:
-            config = TrainingRun()
+            self.config = TrainingRun()
 
         # String name for identification
         self.name = name
 
         # Generic network properties... 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.optimiser = optim.Adam(self.parameters(), lr=config.learning_rate)
+        self.optimiser = optim.Adam(self.parameters(), lr=self.config.q_learning_rate)
         self.scheduler = optim.lr_scheduler.StepLR(self.optimiser, step_size=100, gamma=0.99)
         self.to(self.device)
+
+        self.default_folder = 'saved_networks'
         
         if save_path is None:
-            self.save_path = f"saved_networks/{name}_{self.__class__.__name__}_save.pt"
+            self.save_path = f"{self.default_folder }/{name}_{self.__class__.__name__}_save.pt"
         else:
             self.save_path = save_path
 
@@ -43,9 +45,13 @@ class GenericNetwork:
             if isinstance(attr, torch.Tensor):
                 setattr(self, attr_name, attr.to(self.device))
 
-    def save_network(self, folder='saved_networks', tag=""):
-        """ Save network
+    def save_network(self, folder=None, tag=""):
         """
+        Save network
+        """
+
+        if folder is None:
+            folder = self.default_folder
 
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -54,15 +60,19 @@ class GenericNetwork:
         with open(save_path, 'wb') as f:
             torch.save(self.state_dict(),f)
 
-    def load_network(self,folder='saved_networks', tag=""):
-        """Load a network
+    def load_network(self,folder=None, tag=""):
         """
+        Load a network
+        """
+        if folder is None:
+            folder = self.default_folder
+
         save_path = f"{folder}/{tag}{self.name}_{self.__class__.__name__}_save.pt"
         self.load_state_dict(torch.load(save_path))
 
 class ActorNetwork(nn.Module, GenericNetwork):
 
-    def __init__(self, state_dim, action_dim, name="", max_action=1) -> None:
+    def __init__(self, state_dim, action_dim, name="", min_action=1, max_action=1) -> None:
 
         # No Super so can initialise at different times
         nn.Module.__init__(self)
@@ -80,11 +90,16 @@ class ActorNetwork(nn.Module, GenericNetwork):
 
         self.act = nn.LeakyReLU()
 
-        self.max_action = max_action
+        self.std= 0
 
         GenericNetwork.__init__(self, name, None)
 
-        #self.apply(init_weights)
+        self.action_bias = torch.tensor((max_action+min_action)/2.0, device=self.device)
+        self.action_range = torch.tensor((max_action-min_action)/2.0, device=self.device)
+
+        if self.config.policy_learning_rate != self.config.q_learning_rate:
+            self.optimiser = optim.Adam(self.parameters(), lr=self.config.q_learning_rate)
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimiser, step_size=100, gamma=0.99)
 
     def forward(self, state):
 
@@ -102,6 +117,8 @@ class ActorNetwork(nn.Module, GenericNetwork):
 
         std = log_std.exp()
 
+        self.std = std
+
         return mean, std
         
     def sample_actions(self, state, reparameterize=False):
@@ -117,11 +134,11 @@ class ActorNetwork(nn.Module, GenericNetwork):
             actions = action_distribution.sample()
 
         # Convert infinite range Gaussian into finite tanh distribution
-        action = torch.tanh(actions)*torch.tensor(self.max_action).to(self.device)
+        action = (self.action_range*torch.tanh(actions) + self.action_bias).to(self.device) 
 
         # Take the log of the actions for entropy
         log_probs = action_distribution.log_prob(actions)
-        log_probs -= torch.log(torch.tensor(self.max_action).to(self.device)) + torch.log((1-torch.tanh(actions).pow(2))+self.noise)
+        log_probs -= torch.log(self.action_range*(1-torch.tanh(actions).pow(2))+self.noise)
 
         if len(log_probs.size()) > 1:
             log_probs = log_probs.sum(1, keepdim=True)

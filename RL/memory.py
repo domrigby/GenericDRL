@@ -48,15 +48,15 @@ class ReplayBuffer():
         # if (index+num_done) > self.mem_size:
         #     index = min(self.mem_size-num_done-1, index)
 
-        self.state_memory[index:index+num_done] = state[:num_done]
-        self.new_state_memory[index:index+num_done] = new_state[:num_done]
-        self.action_memory[index:index+num_done] = action[:num_done]
-        self.reward_memory[index:index+num_done] = reward[:num_done]
-        self.terminal_memory[index:index+num_done] = done[:num_done]
+        self.state_memory[index:index+num_done] = state
+        self.new_state_memory[index:index+num_done] = new_state
+        self.action_memory[index:index+num_done] = action
+        self.reward_memory[index:index+num_done] = reward
+        self.terminal_memory[index:index+num_done] = done
 
         if self.prioritise:
-            self.priority[index:index+num_done] = self.calculate_temp_error(state[:num_done], 
-                                    action[:num_done], reward[:num_done], new_state[:num_done])
+            self.priority[index:index+num_done] = self.calculate_temp_error(state, 
+                                    action, reward, new_state)
 
         self.write_num += num_done
         self.total += num_done

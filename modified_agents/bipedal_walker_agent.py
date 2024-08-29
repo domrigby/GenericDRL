@@ -14,12 +14,17 @@ class CurrentPosition():
         self.y = env.hull.position.y
         self.been_set = True
 
+    def __sub__(self, other):
+        if isinstance(other, CurrentPosition):
+            return np.array([self.x - other.x, self.y - other.y])
+        return NotImplemented
+
 
 class BipedalRLAgent(RLAgent):
 
-    def __init__(self, env, temperature=None, learning=True, load_actor_file=None, max_steps=1000) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         self.stuck_count = 0
-        super().__init__(env, temperature, learning, load_actor_file, max_steps)
+        super().__init__(*args, **kwargs)
 
     def explore_one_episode(self):
         self.stuck_count = 0
@@ -33,17 +38,26 @@ class BipedalRLAgent(RLAgent):
         
 
         if not self.mod_called:
-            self.current_position = CurrentPosition(self.env)
+            self.furthest_right = CurrentPosition(self.env)
+            self.last_position = CurrentPosition(self.env)
             self.mod_called = True
             return 0.0, False
 
         new_position = CurrentPosition(self.env)
 
-        if new_position.x > self.current_position.x:
-            reward= 10.0*(new_position.x - self.current_position.x)
-            self.current_position = new_position
+        if new_position.x > self.furthest_right.x:
+            reward= 10.0*(new_position.x - self.furthest_right.x)
+            self.furthest_right = new_position
         else:
             reward = 0
-        
+
+        if np.linalg.norm(new_position - self.last_position) < 0.015:
+            self.stuck_count += 1
+            if self.stuck_count > 250:
+                done = True
+        else:
+            self.stuck_count = 0
+
+        self.last_position = new_position
 
         return reward, done

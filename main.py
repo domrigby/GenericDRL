@@ -7,9 +7,11 @@ from config import TrainingRun
 
 config_file = TrainingRun()
 
-env = gym.make("BipedalWalker-v3", render_mode="human")
+#env = gym.make("LunarLander-v2", render_mode="human", continuous=True)
 
-agent = BipedalRLAgent(env, max_steps=config_file.max_steps, temperature=config_file.Temperature) #, load_actor_file=True) #, learning=False, load_actor_file=True)
+env = gym.make("BipedalWalker-v3", render_mode="human") #, continuous=True)
+
+agent = RLAgent(env, max_steps=config_file.max_steps, temperature=config_file.Temperature, load_networks_dir=config_file.dir_to_load) #, learning=False, load_actor_file=True)
 
 for i in range(100000):
     agent.explore_one_episode()

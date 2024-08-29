@@ -20,7 +20,7 @@ class Agent:
 
 class RLAgent:
 
-    def __init__(self, env, temperature=None, learning=True, load_actor_file=None, max_steps=1000, config=None) -> None:
+    def __init__(self, env, temperature=None, learning=True, load_networks_dir=None, max_steps=1000, config=None) -> None:
         """_summary_
 
         Args:
@@ -69,24 +69,22 @@ class RLAgent:
         # TODO: add action dims and state dims to game env
         # TODO: expand for multipy agents
 
-        self.agent = Agent(ActorNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="actor", max_action= env.action_space.high))
+        self.agent = Agent(ActorNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="actor", min_action=env.action_space.low,
+                                         max_action= env.action_space.high))
 
         # Two critic networks for stability
         self.critic_1 = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_1")
         self.critic_2 = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_2")
-
-        self.critic_1_target = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_1")
-        self.critic_2_target = CriticNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="critic_2")
 
         # Value network
         self.value_net = ValueNetwork(state_dim=self.state_dim, name='value')
         self.target_value_net = ValueNetwork(state_dim=self.state_dim, name='target')
         self.val_loss = nn.MSELoss()
 
-        if load_actor_file:
-            self.load_everything()
+        self.value_net, self.target_value_net = self.conservative_network_update(self.value_net, self.target_value_net)
 
-        self.conversative_value_update(tau=1)
+        if load_networks_dir:
+            self.load_everything(load_networks_dir)
 
         self.scores = []
         self.smoothed_scores = []
@@ -101,17 +99,21 @@ class RLAgent:
                                        target_net=self.target_value_net, gamma=self.gamma)
 
         if temperature is None:
+
             self.auto_temp = True
             # Set target entropy
             self.target_entropy = -torch.prod(torch.Tensor(self.env.action_space.shape).to(self.critic_1.device)).item()
             print(f'Target entropy set to: {self.target_entropy}')
-            self.log_temperature = torch.zeros(1, requires_grad=True, device=self.critic_1.device)
-            self.temperature_optim = optim.Adam([self.log_temperature], lr=0.003)
+            self.log_temperature = torch.tensor([0.0], requires_grad=True, device=self.critic_1.device)
+            self.temperature_optim = optim.Adam([self.log_temperature], lr=0.0003)
 
             self.temperature = self.log_temperature.exp()
+
         else:
             self.auto_temp = False
             self.temperature = torch.tensor(temperature)
+
+        self.current_entropy = 0
 
         if self.plot_scores:
             plt.ion()  # Turn on interactive mode
@@ -124,6 +126,7 @@ class RLAgent:
             plt.title('RL Algorithm Score Over Time')
 
         self.counter = 0
+        self.iter_counter = 0
     
     def get_action(self, agent, game_state):
         # Sample action from actor network
@@ -131,7 +134,7 @@ class RLAgent:
         return action.cpu().numpy()
 
     def explore_one_episode(self):
-
+        
         self.update_hyperparameters()
 
         # Reset environment to start state
@@ -158,6 +161,9 @@ class RLAgent:
 
             new_state, reward, done, truncated, _ = self.env.step(numpy_action)
 
+            if t==0:
+                self.first_action = numpy_action
+
             states[t] = state
             new_states[t] = new_state
             actions[t] = numpy_action
@@ -180,19 +186,20 @@ class RLAgent:
             if done or truncated:
                 state = self.env.reset()
                 break
-
-            # print(f"Step {t} state value : {self.value_net(torch.tensor(state).cuda())[0]:.3f} {self.env.hull.position}")
             
             state = new_state
+            self.iter_counter += 1
 
-        print(f"RUN: {self.counter} Score: {score: .3f} Temperature: {self.temperature.item():.3e}")
+        print(f"RUN: {self.counter}  Score: {score: .3f} \tTemperature: {self.temperature.item():.3e} \tLast std: {self.agent.actor_network.std.mean().item(): .3f}")
+        print(f"\tCurrent entropy: {self.current_entropy: .3e} \t First action: {np.round(self.first_action, 3)} \n\n")
 
         # Save SARS to memory
-        self.replay.store_transition(t, states, actions, rewards, new_states, terminals)
+        steps = t + 1
+        self.replay.store_transition(steps, states[:steps], actions[:steps], rewards[:steps], new_states[:steps], terminals[:steps])
 
         self.scores.append(score)
 
-        smoothing_range = 10
+        smoothing_range = 50
         if len(self.scores) > smoothing_range:
             self.smoothed_scores.append(np.mean(self.scores[-smoothing_range:]))
         
@@ -208,7 +215,7 @@ class RLAgent:
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
 
-        if self.counter%250==0:
+        if self.counter%100==0:
             name_str = f"epoch_{self.counter}_"
             self.save_everything(folder='waypoints', tag=name_str)
 
@@ -225,14 +232,11 @@ class RLAgent:
         return reward, done
     
     def update_hyperparameters(self):
-
-        if self.counter%100==0 and self.counter !=0:
-            self.batch_size*=2
-            self.batch_size = min(256, self.batch_size)
+        pass
 
     def learn(self, agent):
 
-        if self.replay.write_num < self.batch_size:
+        if self.replay.write_num < max(self.batch_size, self.config.learning_start):
             return
         
         # Retrieve sars from buffer
@@ -250,7 +254,7 @@ class RLAgent:
         # The value of a state in SAC not only includes expectation of value after action taken,
         # sampled from the policy, but also the entropy of the policy
         self.value_net.optimiser.zero_grad()
-        value_target = critic_val - log_probs
+        value_target = critic_val - self.temperature*log_probs
 
         # The error of the value function is the difference between the predicted value (value) 
         # and the observed value at this state (value_target)
@@ -261,16 +265,18 @@ class RLAgent:
 
         # ---------------------------- POLICY NETWORK UPDATE ----------------------------------
 
-        # Get an action to do at the current state and tehn criticise it (get the Q value)
-        critic_val, log_probs = self.criticise(agent, state, reparam=True)
-        
-        # Actor loss is log probs + negative critics value...
-        #   ... why? If the actor minimises both of these it will max entropy and reward, soft and hard
-        actor_loss = ((self.temperature*log_probs) - critic_val).mean()
-        agent.actor_network.optimiser.zero_grad()
-        actor_loss.backward(retain_graph=True)
-        agent.actor_network.optimiser.step()
-        agent.actor_network.scheduler.step()
+        if self.iter_counter%self.config.policy_train_freq==0:
+
+            # Get an action to do at the current state and tehn criticise it (get the Q value)
+            critic_val, log_probs = self.criticise(agent, state, reparam=True)
+            
+            # Actor loss is log probs + negative critics value...
+            #   ... why? If the actor minimises both of these it will max entropy and reward, soft and hard
+            actor_loss = ((self.temperature*log_probs) - critic_val).mean()
+            agent.actor_network.optimiser.zero_grad()
+            actor_loss.backward(retain_graph=True)
+            agent.actor_network.optimiser.step()
+            agent.actor_network.scheduler.step()
 
         # ---------------------------- CRITIC NETWORK UPDATE ----------------------------------
 
@@ -304,17 +310,25 @@ class RLAgent:
         self.critic_2.scheduler.step()
 
         # Slowly update V target
-        self.conversative_value_update()
+        self.value_net, self.target_value_net = self.conservative_network_update(self.value_net, self.target_value_net)
 
-        if self.auto_temp:
-            # Temperature update
+        if self.auto_temp and self.iter_counter%self.config.policy_train_freq==0:
+
+            with torch.no_grad():
+                 _, log_probs = agent.actor_network.sample_actions(state)
+
+            # Temperature loss: the temperature * the negative log entropties minus the target entropy
             temperature_loss = -(self.log_temperature.exp() * (log_probs+self.target_entropy).detach()).mean()
 
             self.temperature_optim.zero_grad()
             temperature_loss.backward()
+            torch.nn.utils.clip_grad_norm_([self.log_temperature], max_norm=1)
             self.temperature_optim.step()
 
             self.temperature = self.log_temperature.exp()
+
+            # Current entropy is printing purposes only
+            self.current_entropy = -(log_probs).mean().item()
 
     def criticise(self, agent, states, reparam=False):
         """
@@ -336,16 +350,20 @@ class RLAgent:
 
         return critic_val, log_probs
 
-    def conversative_value_update(self,tau=None):
+    def conservative_network_update(self, network, target_network, tau=None):
 
         if tau is None:
             tau = self.tau
 
-        V_target_params= self.target_value_net.state_dict()
-        V_learned_params = self.value_net.state_dict()
-        for key in V_learned_params :
-            V_target_params[key] = V_learned_params[key]*tau + V_target_params[key]*(1-tau)
-        self.target_value_net.load_state_dict(V_target_params)
+        learned_params = network.state_dict()
+        target_params= target_network.state_dict()
+
+        for key in learned_params :
+            target_params[key] = learned_params[key]*tau + target_params[key]*(1-tau)
+
+        target_network.load_state_dict(target_params)
+
+        return network, target_network
 
     def compute_advantages(self, rewards, values, next_values, dones):
         deltas = rewards + self.gamma * next_values * (1 - dones) - values
