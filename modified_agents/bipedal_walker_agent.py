@@ -45,16 +45,17 @@ class BipedalRLAgent(RLAgent):
 
         new_position = CurrentPosition(self.env)
 
-        if new_position.x > self.furthest_right.x:
-            reward= 10.0*(new_position.x - self.furthest_right.x)
-            self.furthest_right = new_position
-        else:
-            reward = 0
+        # if new_position.x > self.furthest_right.x:
+        #     reward= 10.0*(new_position.x - self.furthest_right.x)
+        #     self.furthest_right = new_position
+        # else:
+        #     reward = 0
 
         if np.linalg.norm(new_position - self.last_position) < 0.015:
             self.stuck_count += 1
-            if self.stuck_count > 250:
+            if self.stuck_count > 500:
                 done = True
+                reward -= 100
         else:
             self.stuck_count = 0
 

@@ -104,8 +104,8 @@ class RLAgent:
             # Set target entropy
             self.target_entropy = -torch.prod(torch.Tensor(self.env.action_space.shape).to(self.critic_1.device)).item()
             print(f'Target entropy set to: {self.target_entropy}')
-            self.log_temperature = torch.tensor([0.0], requires_grad=True, device=self.critic_1.device)
-            self.temperature_optim = optim.Adam([self.log_temperature], lr=0.0003)
+            self.log_temperature = torch.tensor([self.config.start_log_temp], requires_grad=True, device=self.critic_1.device)
+            self.temperature_optim = optim.Adam([self.log_temperature], lr=self.config.temp_lr)
 
             self.temperature = self.log_temperature.exp()
 
@@ -197,6 +197,9 @@ class RLAgent:
         steps = t + 1
         self.replay.store_transition(steps, states[:steps], actions[:steps], rewards[:steps], new_states[:steps], terminals[:steps])
 
+        # Step the learning rates
+        self.step_learning_rates()
+
         self.scores.append(score)
 
         smoothing_range = 50
@@ -261,7 +264,6 @@ class RLAgent:
         value_loss = 0.5*self.val_loss(value, value_target)
         value_loss.backward(retain_graph=True)
         self.value_net.optimiser.step()
-        self.value_net.scheduler.step()
 
         # ---------------------------- POLICY NETWORK UPDATE ----------------------------------
 
@@ -276,7 +278,6 @@ class RLAgent:
             agent.actor_network.optimiser.zero_grad()
             actor_loss.backward(retain_graph=True)
             agent.actor_network.optimiser.step()
-            agent.actor_network.scheduler.step()
 
         # ---------------------------- CRITIC NETWORK UPDATE ----------------------------------
 
@@ -306,12 +307,10 @@ class RLAgent:
         critic_loss.backward()
         self.critic_1.optimiser.step()
         self.critic_2.optimiser.step()
-        self.critic_1.scheduler.step()
-        self.critic_2.scheduler.step()
 
         # Slowly update V target
         self.value_net, self.target_value_net = self.conservative_network_update(self.value_net, self.target_value_net)
-
+        
         if self.auto_temp and self.iter_counter%self.config.policy_train_freq==0:
 
             with torch.no_grad():
@@ -373,6 +372,13 @@ class RLAgent:
             gae = deltas[t] + self.gamma * self.lam * (1 - dones[t]) * gae
             advantages[t] = gae
         return advantages
+    
+    def step_learning_rates(self):
+        # Step all learning rates
+        self.value_net.scheduler.step()
+        self.critic_1.scheduler.step()
+        self.critic_2.scheduler.step()
+        self.agent.actor_network.scheduler.step()
 
     def save_everything(self,*args, **kwargs):
         # find all networks... not loss
@@ -382,7 +388,7 @@ class RLAgent:
                 attribute.save_network(*args, **kwargs)
 
     def load_everything(self,*args, **kwargs):
-        self.agent.actor_network.load_network()
+        self.agent.actor_network.load_network(*args)
         for name, attribute in self.__dict__.items():
             if isinstance(attribute, nn.Module) and not isinstance(attribute, nn.modules.loss._Loss):
                 attribute.load_network(*args, **kwargs)
