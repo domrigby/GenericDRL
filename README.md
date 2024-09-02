@@ -4,7 +4,25 @@ Soft Actor-Critic methods are a type of reinforcement learning algorithms that h
 
 SAC methods was also the first big reinforcement learning project I undertook from just reading the paper and without having an identical project to reference against use to check my answers. It was therefore the first one I had to spend hours twiddling hyper-parameters and checking for bugs. I eventually ended up with quite well commented code, a working test set and a pretty good understanding of soft actor-critic. This is therefore what I am going to go through today.
 
+## Running the program
+
+Set up the hyperparameters in config.py. If you wish too train a model, set learning to True.
+
+### Loading a pre-trained model
+
+Set the dir_to_load parameter of config to the directory contain the pt files of the networks.
+
+E.g:
+
+```self.dir_to_load = 'working_networks/bipedal_walker```
+
+Example of running: 
+
+[![Bipedal walker running](images/bipedal_walker_example.png)](https://www.youtube.com/watch?v=2XYsnjucNiY)
+
 ## Overview
+
+This whole repository is based on the paper:[ Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor]([URL](https://arxiv.org/pdf/1801.01290))
 
 ### What's an actor-critic?
 
@@ -72,5 +90,25 @@ This implementation has four neural networks. Below is a brief description of wh
 
 ### Critic 
 
-This neural networks is used to provide a value estimate of the action the actor has taken in a specific state. It does this by approximating the Q-function which does exactly that. It is updated using a temporal error loss which takes the error between tehe predicted and bootstrapped, observed error.
+This implementation of SAC has two neural networks which are used to provide a value estimates of the action the actor has taken in a specific state. It does this by approximating the Q-function which does exactly that. There are two to increase stability. Both are used to evaluate a state-action pair and then the minimum estimate is taken. This is improves by stability by mitigating risk of over estimating value.
 
+It is updated using a temporal error loss which takes the error between tehe predicted and bootstrapped, observed error. The equation is shown below. The weights are then conservatively updated.
+
+$$Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a'} V_{target}(s') - Q(s, a) \right]$$
+
+I will cover the $V_{target}(s')$ below.
+
+### Actor
+
+The actor function in this implementation has neural networks whichmap from state to means and standard deviations for the actions. A normal distribution is then created and sampled from to get the final action. It is trained to minimise:
+
+$$J_{\pi}(\theta) = \mathbb{E}_{s_t \sim D} \left[ \mathbb{E}_{a_t \sim \pi_\theta} \left[ \log \left(\pi_\theta(a_t|s_t)\right) - Q(s_t, a_t) \right] \right]$$
+
+In which $Q_\phi(s_t, a_t)$ is the critic's value estimate of the value for the action the actor took and $\log (\pi_\theta(a_t|s_t))$ is the entropy. This makes sense: we want to maximise the value of the action taken, hence the negative Q, whilst also maximise the entropy. Remember, for high entropy we want lower probabilities and therefore the negative log will be higher.
+
+### Target Value 
+The target value network in this implementation is a neural network that estimates the value function $V_{\text{target}}(s)$ for a given state $s$. This network is crucial for stabilizing the learning process of the critic by providing a consistent and slowly updating target for the Q-function updates. The target value network parameters are updated using a soft update mechanism, which means that they are a slowly moving average of the critic's value network parameters, ensuring stability in training.
+
+The target value network is trained to minimize the following loss:
+
+$$J_V(\phi) = \mathbb{E}_{s_t \sim D} \left[ \frac{1}{2} \left( V_{\text{target}}(s_t) - \left( r_t + \gamma \mathbb{E}_{a_{t+1} \sim \pi_\theta} \left[ Q_\phi(s_{t+1}, a_{t+1}) - \alpha \log \pi_\theta(a_{t+1}|s_{t+1}) \right] \right) \right)^2 \right]$$

@@ -53,6 +53,7 @@ class RLAgent:
         self.action_dim = self.env.action_space.shape[0]
 
         # Set the learning paraameters
+        print(learning)
         self.learning = learning
         self.batch_size= self.config.batch_size
         self.tau = self.config.tau
@@ -238,7 +239,6 @@ class RLAgent:
         pass
 
     def learn(self, agent):
-
         if self.replay.write_num < max(self.batch_size, self.config.learning_start):
             return
         
