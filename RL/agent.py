@@ -20,7 +20,8 @@ class Agent:
 
 class RLAgent:
 
-    def __init__(self, env, temperature=None, learning=True, load_networks_dir=None, max_steps=1000, config=None) -> None:
+    def __init__(self, env, temperature: float = None, learning: bool = True, load_networks_dir: str = None, 
+                 max_steps: int =1000, config: TrainingRun = TrainingRun()) -> None:
         """_summary_
 
         Args:
@@ -31,9 +32,7 @@ class RLAgent:
             num_runs (int, optional): number of runs you want the system to run for. Defaults to 1000.
         """
 
-        if config is None:
-            self.config = TrainingRun()
-
+        # Initialise random seeds
         random_seed = np.random.randint(10000)
         torch.manual_seed(random_seed)
         np.random.seed(seed=random_seed)
@@ -42,18 +41,20 @@ class RLAgent:
         now = datetime.now()
         date_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
+        # Initialsie this log entry
         with open('RLAgentLog.txt', 'a') as f:
             line = "RLAgent run at :" + date_time_str + f"\n\tRandom seed: {random_seed}\n\n"
             f.write(line)
 
+        # Save the environment
         self.env = env
+        self.config = config
 
         # Get the shape of the state space
         self.state_dim = self.env.observation_space.shape[0]
         self.action_dim = self.env.action_space.shape[0]
 
         # Set the learning paraameters
-        print(learning)
         self.learning = learning
         self.batch_size= self.config.batch_size
         self.tau = self.config.tau
@@ -64,12 +65,9 @@ class RLAgent:
 
         self.gamma = self.config.gamma
         self.clip_param = 0.2
-
         self.best_score = 0
 
-        # TODO: add action dims and state dims to game env
-        # TODO: expand for multipy agents
-
+        # ------ Initialise networks --------
         self.agent = Agent(ActorNetwork(state_dim=self.state_dim, action_dim=self.action_dim, name="actor", min_action=env.action_space.low,
                                          max_action= env.action_space.high))
 
@@ -199,7 +197,8 @@ class RLAgent:
         self.replay.store_transition(steps, states[:steps], actions[:steps], rewards[:steps], new_states[:steps], terminals[:steps])
 
         # Step the learning rates
-        self.step_learning_rates()
+        if self.learning:
+            self.step_learning_rates()
 
         self.scores.append(score)
 
@@ -363,15 +362,6 @@ class RLAgent:
         target_network.load_state_dict(target_params)
 
         return network, target_network
-
-    def compute_advantages(self, rewards, values, next_values, dones):
-        deltas = rewards + self.gamma * next_values * (1 - dones) - values
-        advantages = torch.zeros_like(rewards)
-        gae = 0
-        for t in reversed(range(len(rewards))):
-            gae = deltas[t] + self.gamma * self.lam * (1 - dones[t]) * gae
-            advantages[t] = gae
-        return advantages
     
     def step_learning_rates(self):
         # Step all learning rates
