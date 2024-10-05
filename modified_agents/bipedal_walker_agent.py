@@ -1,9 +1,9 @@
-from RL.agent import RLAgent
+from RL.SAC.sac_agent import SACAgent
 
 import gymnasium as gym
 import numpy as np
 
-from RL.networks import ActorNetwork
+from RL.SAC.networks import ActorNetwork
 
 class CurrentPosition():
     def __init__(self, env) -> None:
@@ -22,7 +22,7 @@ class CurrentPosition():
         return NotImplemented
 
 
-class BipedalRLAgent(RLAgent):
+class BipedalRLAgent(SACAgent):
 
     def __init__(self, *args, **kwargs) -> None:
         self.stuck_count = 0

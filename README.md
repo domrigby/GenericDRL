@@ -1,3 +1,16 @@
+# Generic DRL
+
+This is a generic deep reinforcement learning library in which the user can implement any RL aglorithm they wish, hopefully with a minimal coding required.
+
+## Implementing own algorithm
+A base class RLAgent in RL/agent.py contains all the functionality to perform DRL: stepping the environment, collecting and saving data etc. To train an algorithm, the user simply has to implement neural networks, action selection and learning functions.
+
+## Creating own neural nets
+A base neural network class GenericNetwork has been provided in RL/generic_network,py. This contains all the functionality for to train the neural networks: optimiser, learning rate stepper, saving and loading. The user simply must implement forward passes.
+
+## Example set up
+An example set up, using soft actor critic, can be found in RL/SAC. Quick outline of Soft Actor Critic:
+
 # Soft Actor-Critic Methods
 
 Soft Actor-Critic methods are a type of reinforcement learning algorithms that hold a special spot in my heart. I remember the excited, and slightly sinking, feeling of "wow, physics really is ubiquitous" when I heard that entropy was used as guiding metric for agents to learn how to play games.
@@ -7,6 +20,8 @@ SAC methods was also the first big reinforcement learning project I undertook fr
 ## Running the program
 
 Set up the hyperparameters in config.py. If you wish too train a model, set learning to True.
+
+Then simply run main.py with your selected parameters.
 
 ### Loading a pre-trained model
 
